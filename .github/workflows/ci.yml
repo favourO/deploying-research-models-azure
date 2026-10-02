@@ -1,1 +1,10 @@
-# Application CI is intentionally deferred to a later phase.
+name: Application CI (deferred)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deferred:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Application CI is handled by the DEV deployment workflow."

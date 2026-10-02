@@ -134,6 +134,26 @@ cd infra
 pulumi stack output applicationUrl
 ```
 
+### Deployment history and rollback
+
+Inspect the running image, recent immutable ACR images, and successful deployments:
+
+```bash
+deploy history dev
+```
+
+Roll back to the previous immutable image, or select an explicit commit:
+
+```bash
+deploy rollback dev
+deploy rollback dev 175dda35
+```
+
+Rollback never rebuilds or retags an image. It validates the target in ACR, updates
+the Container App, waits for a healthy provisioned revision, and exercises both
+`/health` and `/analysis`. If verification fails, the command automatically restores
+and verifies the image that was running when rollback began.
+
 ### Manual application and infrastructure deployment
 
 No image build or push is performed by Pulumi. The DEV deployment script previews and

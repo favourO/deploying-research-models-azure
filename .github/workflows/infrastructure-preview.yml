@@ -1,1 +1,10 @@
-# Infrastructure preview automation is intentionally deferred to a later phase.
+name: Infrastructure preview (deferred)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deferred:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Infrastructure preview automation is not implemented."
