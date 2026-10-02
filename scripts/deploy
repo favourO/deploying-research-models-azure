@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: deploy dev [commit message]" >&2
+  echo "Usage: deploy dev" >&2
 }
 
 if [[ "${1:-}" != "dev" ]]; then
@@ -11,6 +11,11 @@ if [[ "${1:-}" != "dev" ]]; then
   exit 2
 fi
 shift
+
+if [[ $# -ne 0 ]]; then
+  usage
+  exit 2
+fi
 
 if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
   echo "Run this command from inside the research-analysis-platform repository." >&2
@@ -25,20 +30,73 @@ if [[ "${current_branch}" != "main" ]]; then
   exit 1
 fi
 
-if git diff --quiet -- app && \
-  git diff --cached --quiet -- app && \
-  [[ -z "$(git ls-files --others --exclude-standard -- app)" ]]; then
-  current_commit="$(git rev-parse --short=8 HEAD)"
-  echo "No updates to deploy; git commit remains ${current_commit}."
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Working tree is not clean. Commit or discard local changes before deploying." >&2
+  exit 1
+fi
+
+for command in gh git; do
+  if ! command -v "${command}" >/dev/null 2>&1; then
+    echo "Required command not found: ${command}" >&2
+    exit 1
+  fi
+done
+
+echo "Checking origin/main..."
+git fetch --quiet origin main
+
+local_commit="$(git rev-parse HEAD)"
+remote_commit="$(git rev-parse origin/main)"
+short_commit="$(git rev-parse --short=8 HEAD)"
+
+if [[ "${local_commit}" != "${remote_commit}" ]]; then
+  echo "Local main is not synchronized with origin/main." >&2
+  echo "Update local main after the PR merge, then run 'deploy dev' again." >&2
+  exit 1
+fi
+
+workflow="application-deploy.yml"
+
+successful_run="$(
+  gh run list \
+    --workflow "${workflow}" \
+    --commit "${local_commit}" \
+    --status success \
+    --limit 1 \
+    --json databaseId \
+    --jq '.[0].databaseId // empty'
+)"
+
+if [[ -n "${successful_run}" ]]; then
+  echo "No updates to deploy; commit ${short_commit} is already deployed to DEV."
   exit 0
 fi
 
-commit_message="${*:-deploy(dev): update application}"
+echo "Requesting DEV deployment for commit ${short_commit}..."
+gh workflow run "${workflow}" --ref main
 
-git add --all -- app
-git commit -m "${commit_message}"
-git push origin main
+run_id=""
+for _ in {1..15}; do
+  run_id="$(
+    gh run list \
+      --workflow "${workflow}" \
+      --commit "${local_commit}" \
+      --event workflow_dispatch \
+      --limit 1 \
+      --json databaseId \
+      --jq '.[0].databaseId // empty'
+  )"
+  if [[ -n "${run_id}" ]]; then
+    break
+  fi
+  sleep 2
+done
 
-deployed_commit="$(git rev-parse --short=8 HEAD)"
-echo "Deployment requested for commit ${deployed_commit}."
-echo "GitHub Actions will test the application and publish the DEV image."
+if [[ -z "${run_id}" ]]; then
+  echo "Deployment was requested, but its GitHub Actions run could not be found." >&2
+  exit 1
+fi
+
+echo "Watching GitHub Actions run ${run_id}..."
+gh run watch "${run_id}" --exit-status
+echo "DEV deployment completed for commit ${short_commit}."

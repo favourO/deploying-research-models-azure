@@ -1,11 +1,6 @@
 name: Deploy application
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "app/**"
-      - ".github/workflows/application-deploy.yml"
   workflow_dispatch:
 
 permissions:

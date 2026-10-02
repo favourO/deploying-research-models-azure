@@ -102,25 +102,23 @@ or credential files.
 
 ### CI/CD application deployment
 
-Application changes are tested and published to DEV by GitHub Actions. From anywhere
-inside this repository, run:
+After an application pull request is merged, update your local `main` and explicitly
+start the DEV deployment:
 
 ```bash
+git switch main
+git pull --ff-only origin main
 deploy dev
 ```
 
-The command commits changes under `app/`, pushes `main`, and triggers
-`.github/workflows/application-deploy.yml`. An optional commit message can be supplied:
-
-```bash
-deploy dev "improve return model"
-```
-
-If `app/` has no changes, the command exits successfully and reports that the Git
-commit remains unchanged. Changes outside `app/` are not included automatically. Each
-successful workflow publishes both an immutable eight-character commit tag and the
-movable `dev` tag. GitHub authenticates to Azure using OIDC; no Azure client secret or
-ACR password is stored.
+The command requires a clean local `main` synchronized with `origin/main`. It does not
+create commits or push code. It triggers `.github/workflows/application-deploy.yml` for
+the merged commit and waits for GitHub Actions to finish. If that exact commit already
+has a successful deployment, the command exits successfully without deploying it
+again. Each successful workflow publishes both an immutable eight-character commit
+tag and the movable `dev` tag. GitHub authenticates to Azure using OIDC; no Azure
+client secret or ACR password is stored. A merge or push to `main` does not deploy
+automatically.
 
 The repository-level GitHub variables required by the workflow are
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
