@@ -64,12 +64,30 @@ docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
 docker push "${REMOTE_IMAGE}"
 
 echo "Verifying the published tag..."
-az acr repository show-tags \
-  --name "${REGISTRY_NAME}" \
-  --repository "${IMAGE_REPOSITORY}" \
-  --query "[?name=='${IMAGE_TAG}'].{tag:name,digest:digest}" \
-  --output table
+PUBLISHED_DIGEST=""
+for attempt in {1..10}; do
+  PUBLISHED_DIGEST="$(az acr repository show-tags \
+    --name "${REGISTRY_NAME}" \
+    --repository "${IMAGE_REPOSITORY}" \
+    --detail \
+    --query "[?name=='${IMAGE_TAG}'].digest | [0]" \
+    --output tsv)"
+
+  if [[ -n "${PUBLISHED_DIGEST}" ]]; then
+    break
+  fi
+
+  if [[ "${attempt}" -lt 10 ]]; then
+    sleep 3
+  fi
+done
+
+if [[ -z "${PUBLISHED_DIGEST}" ]]; then
+  echo "Published tag '${IMAGE_TAG}' was not found in ACR." >&2
+  exit 1
+fi
 
 echo "Deployment complete."
 echo "Registry: ${REGISTRY_SERVER}"
 echo "Image: ${REMOTE_IMAGE}"
+echo "Digest: ${PUBLISHED_DIGEST}"
