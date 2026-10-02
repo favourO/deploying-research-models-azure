@@ -6,6 +6,7 @@ import pulumi
 from pulumi_azure_native import resources
 
 from components.registry import Registry, RegistryArgs
+from components.runtime import Runtime, RuntimeArgs
 from components.storage import Storage, StorageArgs
 
 config = pulumi.Config()
@@ -63,6 +64,18 @@ platform_registry = Registry(
     ),
 )
 
+runtime = Runtime(
+    "runtime",
+    RuntimeArgs(
+        resource_group_name=resource_group.name,
+        location=resource_group.location,
+        registry_id=platform_registry.registry_id,
+        registry_server=platform_registry.registry_login_server,
+        github_deployment_principal_id=config.require("githubDeploymentPrincipalId"),
+        tags=tags,
+    ),
+)
+
 pulumi.export("environment", environment)
 pulumi.export("location", location)
 pulumi.export("resourceGroupName", resource_group.name)
@@ -72,3 +85,4 @@ pulumi.export("datasetsContainerName", platform_storage.datasets_container_name)
 pulumi.export("resultsContainerName", platform_storage.results_container_name)
 pulumi.export("registryName", platform_registry.registry_name)
 pulumi.export("registryLoginServer", platform_registry.registry_login_server)
+pulumi.export("applicationUrl", runtime.url)

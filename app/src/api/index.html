@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Analyse a series of security prices.">
+    <title>Research return analyser</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #172033;
+        background: #eef2f7;
+      }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem;
+        background:
+          radial-gradient(circle at 12% 10%, rgba(70, 103, 255, .14), transparent 28rem),
+          radial-gradient(circle at 90% 90%, rgba(19, 164, 143, .13), transparent 30rem),
+          #eef2f7;
+      }
+      main { width: min(100%, 960px); }
+      header { margin-bottom: 1.4rem; }
+      .eyebrow {
+        margin: 0 0 .45rem;
+        color: #4159c7;
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+      }
+      h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); letter-spacing: -.045em; }
+      .intro { max-width: 620px; color: #59657a; line-height: 1.6; }
+      .layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 1rem; }
+      .card { background: rgba(255, 255, 255, .9); border: 1px solid #dfe5ef; border-radius: 18px; padding: 1.35rem; box-shadow: 0 18px 60px rgba(36, 47, 74, .08); }
+      label { display: block; margin-bottom: .45rem; font-size: .84rem; font-weight: 750; }
+      input, textarea, button { width: 100%; font: inherit; }
+      input, textarea { border: 1px solid #cbd3e1; border-radius: 10px; padding: .8rem; color: inherit; background: #fff; }
+      input:focus, textarea:focus { outline: 3px solid rgba(65, 89, 199, .16); border-color: #4159c7; }
+      textarea { min-height: 180px; resize: vertical; line-height: 1.55; }
+      .field + .field { margin-top: 1rem; }
+      .hint { margin: .4rem 0 0; color: #758095; font-size: .78rem; line-height: 1.45; }
+      button { margin-top: 1.15rem; border: 0; border-radius: 11px; padding: .85rem 1rem; background: #243db5; color: white; font-weight: 800; cursor: pointer; }
+      button:hover { background: #1d3299; }
+      button:disabled { opacity: .62; cursor: wait; }
+      .result-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      h2 { margin: 0; font-size: 1.1rem; }
+      .status { border-radius: 999px; padding: .28rem .58rem; color: #627087; background: #edf0f5; font-size: .72rem; font-weight: 800; }
+      .status.ready { color: #087463; background: #dcf7f0; }
+      .status.error { color: #a12c39; background: #fde7ea; }
+      .empty { min-height: 260px; display: grid; place-items: center; text-align: center; color: #7a8497; line-height: 1.55; }
+      .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin-top: 1.1rem; }
+      .metric { padding: .9rem; background: #f4f6fa; border-radius: 12px; }
+      .metric span { display: block; color: #6d788d; font-size: .72rem; margin-bottom: .3rem; }
+      .metric strong { font-size: 1.1rem; }
+      .error-message { color: #a12c39; background: #fff1f2; border-radius: 10px; padding: .8rem; margin-top: 1rem; line-height: 1.45; }
+      @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Research Analysis · DEV</p>
+        <h1>Research return analyser</h1>
+        <p class="intro">Enter a ticker and a chronological price series to calculate returns, volatility, and cumulative performance.</p>
+      </header>
+      <div class="layout">
+        <form class="card" id="analysis-form">
+          <div class="field">
+            <label for="ticker">Ticker</label>
+            <input id="ticker" name="ticker" value="MSFT" autocomplete="off" required>
+          </div>
+          <div class="field">
+            <label for="prices">Prices</label>
+            <textarea id="prices" name="prices" required>410.20
+415.80
+417.10
+430.50
+421.30</textarea>
+            <p class="hint">At least three positive prices, separated by commas, spaces, or new lines.</p>
+          </div>
+          <button type="submit">Analyse prices</button>
+        </form>
+        <section class="card" aria-live="polite">
+          <div class="result-head">
+            <h2>Analysis</h2>
+            <span class="status" id="status">Waiting</span>
+          </div>
+          <div id="results" class="empty">Your summary statistics will appear here.</div>
+        </section>
+      </div>
+    </main>
+    <script>
+      const form = document.querySelector("#analysis-form");
+      const button = form.querySelector("button");
+      const status = document.querySelector("#status");
+      const results = document.querySelector("#results");
+      const percent = new Intl.NumberFormat(undefined, { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+      function metric(label, value) {
+        return `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const prices = form.prices.value.split(/[\s,]+/).filter(Boolean).map(Number);
+        button.disabled = true;
+        status.className = "status";
+        status.textContent = "Analysing";
+        results.className = "empty";
+        results.textContent = "Calculating summary statistics…";
+
+        try {
+          const response = await fetch("/analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ticker: form.ticker.value, prices })
+          });
+          if (!response.ok) throw new Error("Check that the ticker is present and supply at least three positive prices.");
+          const data = await response.json();
+          results.className = "metrics";
+          results.innerHTML = [
+            metric("Ticker", data.ticker),
+            metric("Observations", data.observations),
+            metric("Mean return", percent.format(data.mean_return)),
+            metric("Volatility", percent.format(data.volatility)),
+            metric("Minimum return", percent.format(data.min_return)),
+            metric("Maximum return", percent.format(data.max_return)),
+            metric("Cumulative return", percent.format(data.cumulative_return))
+          ].join("");
+          status.className = "status ready";
+          status.textContent = "Complete";
+        } catch (error) {
+          results.className = "error-message";
+          results.textContent = error instanceof Error ? error.message : "The analysis request failed.";
+          status.className = "status error";
+          status.textContent = "Error";
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

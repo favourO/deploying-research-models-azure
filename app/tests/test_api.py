@@ -6,6 +6,13 @@ from src.api.main import app
 client = TestClient(app)
 
 
+def test_web_interface() -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Research return analyser" in response.text
+
+
 def test_health_endpoint() -> None:
     response = client.get("/health")
     assert response.status_code == 200

@@ -1,11 +1,20 @@
 """HTTP adapter for the research analysis application."""
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
 
 from src.analysis import AnalysisError, calculate_summary_statistics
 from src.api.models import AnalysisRequest, AnalysisResponse, HealthResponse
 
 app = FastAPI(title="Research Analysis API", version="0.1.0")
+INDEX_PATH = Path(__file__).with_name("index.html")
+
+
+@app.get("/", include_in_schema=False, response_class=FileResponse)
+def index() -> FileResponse:
+    return FileResponse(INDEX_PATH)
 
 
 @app.get("/health", response_model=HealthResponse)

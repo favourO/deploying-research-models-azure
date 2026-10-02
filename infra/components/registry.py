@@ -20,6 +20,7 @@ class Registry(pulumi.ComponentResource):
 
     registry_name: pulumi.Output[str]
     registry_login_server: pulumi.Output[str]
+    registry_id: pulumi.Output[str]
 
     def __init__(
         self,
@@ -44,10 +45,12 @@ class Registry(pulumi.ComponentResource):
 
         self.registry_name = registry.name
         self.registry_login_server = registry.login_server
+        self.registry_id = registry.id
 
         self.register_outputs(
             {
                 "registryName": self.registry_name,
                 "registryLoginServer": self.registry_login_server,
+                "registryId": self.registry_id,
             }
         )

@@ -10,10 +10,11 @@ Implemented so far:
 - Azure Resource Group, StorageV2 account, and private `datasets`/`results` containers
 - Azure Blob Storage backend for self-managed Pulumi state
 - Azure Key Vault key for Pulumi configuration-secret encryption
-- Azure Container Registry declaration, ready for manual preview and deployment
+- Azure Container Registry and a public, scale-to-zero Azure Container App
+- Browser interface for submitting price series and viewing return analysis
 
-AKS, networking, application identities, application Key Vault integration, runtime
-deployment, and CI/CD are not implemented.
+AKS, private networking, application Key Vault integration, and production runtime
+hardening are not implemented.
 
 ## Repository boundaries
 
@@ -39,7 +40,8 @@ pytest
 uvicorn src.api.main:app --reload
 ```
 
-The API exposes `GET /health` and `POST /analysis`.
+The application exposes the browser interface at `/`, `GET /health`, and
+`POST /analysis`.
 
 ## Infrastructure architecture
 
@@ -51,17 +53,19 @@ flowchart TB
     storage --> results[results / private]
     appRg --> acr[Azure Container Registry / Basic]
     acr --> image[research-analysis:commit-sha]
+    image --> containerApp[Azure Container App / scale to zero]
+    browser[Browser / HTTPS] --> containerApp
 
     bootstrapRg[research-analysis-bootstrap-rg] --> state[Blob: pulumi-state]
     bootstrapRg --> vault[Key Vault encryption key]
 
-    acr -. future AcrPull .-> aks[AKS / NOT IMPLEMENTED]
+    acr -. managed identity / AcrPull .-> containerApp
 ```
 
-Pulumi provisions Azure infrastructure. Docker builds the application artifact. Azure
-CLI authenticates the developer and verifies Azure/ACR. `docker push` publishes an
-already-built artifact. Future GitHub Actions or Jenkins pipelines will automate these
-steps, and AKS will consume the published image.
+Pulumi provisions Azure infrastructure. GitHub Actions builds and publishes the
+application artifact, then updates the Container App to the immutable commit tag. The
+public endpoint uses HTTPS-only ingress; the runtime pulls private images from ACR with
+a managed identity.
 
 ## Pulumi backend and secrets
 
@@ -122,6 +126,13 @@ automatically.
 
 The repository-level GitHub variables required by the workflow are
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
+
+The DEV application URL is exported by Pulumi:
+
+```bash
+cd infra
+pulumi stack output applicationUrl
+```
 
 ### Manual application and infrastructure deployment
 
@@ -189,6 +200,8 @@ immutable digest even when additional human-friendly tags such as `dev`, `stagin
 
 - ACR uses the cost-conscious Basic SKU.
 - ACR admin credentials and anonymous pulls are disabled.
+- The Container App uses a managed identity with scoped `AcrPull` access.
+- DEV uses HTTPS-only public ingress and scales down to zero replicas when idle.
 - Authentication uses Azure CLI/Entra ID; no registry password is retrieved or exported.
 - Storage requires HTTPS and TLS 1.2 and disallows anonymous Blob access.
 - No access keys, client secrets, Pulumi tokens, or Docker credentials are committed.
