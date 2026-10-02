@@ -1,0 +1,3 @@
+config:
+  research-analysis-infra:environment: staging
+  research-analysis-infra:location: uksouth

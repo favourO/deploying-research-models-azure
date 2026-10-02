@@ -1,0 +1,3 @@
+config:
+  research-analysis-infra:environment: prod
+  research-analysis-infra:location: uksouth

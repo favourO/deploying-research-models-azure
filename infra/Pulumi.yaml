@@ -1,0 +1,9 @@
+name: research-analysis-infra
+description: Azure infrastructure for the research analysis platform
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: .venv
+backend:
+  url: azblob://pulumi-state?storage_account=rapstate18c845ca

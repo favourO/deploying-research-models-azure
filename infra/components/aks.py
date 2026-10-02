@@ -1,0 +1,1 @@
+"""AKS component — intentionally deferred."""

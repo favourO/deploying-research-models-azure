@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Node / TypeScript
+node_modules/
+
+# Pulumi local data (stack YAML configuration remains tracked)
+.pulumi/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
