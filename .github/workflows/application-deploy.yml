@@ -1,1 +1,99 @@
-# Application deployment automation is intentionally deferred to a later phase.
+name: Deploy application
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/application-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: application-dev
+  cancel-in-progress: false
+
+env:
+  ACR_NAME: researchanalysisdev39fbe143
+  ACR_SERVER: researchanalysisdev39fbe143.azurecr.io
+  IMAGE_REPOSITORY: research-analysis
+
+jobs:
+  test-and-publish:
+    name: Test and publish DEV image
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/requirements-dev.txt
+
+      - name: Install test dependencies
+        working-directory: app
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Check formatting
+        working-directory: app
+        run: ruff format --check .
+
+      - name: Lint
+        working-directory: app
+        run: ruff check .
+
+      - name: Type check
+        working-directory: app
+        run: mypy
+
+      - name: Test
+        working-directory: app
+        run: pytest
+
+      - name: Authenticate to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Authenticate Docker to ACR
+        run: az acr login --name "${ACR_NAME}"
+
+      - name: Set image metadata
+        id: image
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::8}"
+          echo "tag=${short_sha}" >> "${GITHUB_OUTPUT}"
+          echo "image=${ACR_SERVER}/${IMAGE_REPOSITORY}:${short_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.image }}
+            ${{ env.ACR_SERVER }}/${{ env.IMAGE_REPOSITORY }}:dev
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deployment summary
+        run: |
+          echo "### DEV image published" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```text' >> "${GITHUB_STEP_SUMMARY}"
+          echo "${{ steps.image.outputs.image }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"

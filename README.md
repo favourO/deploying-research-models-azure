@@ -100,6 +100,33 @@ or credential files.
 
 ## Phase 3 ACR and image deployment
 
+### CI/CD application deployment
+
+Application changes are tested and published to DEV by GitHub Actions. From anywhere
+inside this repository, run:
+
+```bash
+deploy dev
+```
+
+The command commits changes under `app/`, pushes `main`, and triggers
+`.github/workflows/application-deploy.yml`. An optional commit message can be supplied:
+
+```bash
+deploy dev "improve return model"
+```
+
+If `app/` has no changes, the command exits successfully and reports that the Git
+commit remains unchanged. Changes outside `app/` are not included automatically. Each
+successful workflow publishes both an immutable eight-character commit tag and the
+movable `dev` tag. GitHub authenticates to Azure using OIDC; no Azure client secret or
+ACR password is stored.
+
+The repository-level GitHub variables required by the workflow are
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
+
+### Manual application and infrastructure deployment
+
 No image build or push is performed by Pulumi. The DEV deployment script previews and
 applies the infrastructure, builds the application once with the current commit SHA,
 pushes a Linux AMD64 image to ACR, and verifies the resulting tag and manifest:

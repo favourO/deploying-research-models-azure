@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  echo "Usage: deploy dev [commit message]" >&2
+}
+
+if [[ "${1:-}" != "dev" ]]; then
+  usage
+  exit 2
+fi
+shift
+
+if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "Run this command from inside the research-analysis-platform repository." >&2
+  exit 1
+fi
+
+cd "${REPO_ROOT}"
+
+current_branch="$(git branch --show-current)"
+if [[ "${current_branch}" != "main" ]]; then
+  echo "DEV deployments must be started from main; current branch is '${current_branch}'." >&2
+  exit 1
+fi
+
+if git diff --quiet -- app && \
+  git diff --cached --quiet -- app && \
+  [[ -z "$(git ls-files --others --exclude-standard -- app)" ]]; then
+  current_commit="$(git rev-parse --short=8 HEAD)"
+  echo "No updates to deploy; git commit remains ${current_commit}."
+  exit 0
+fi
+
+commit_message="${*:-deploy(dev): update application}"
+
+git add --all -- app
+git commit -m "${commit_message}"
+git push origin main
+
+deployed_commit="$(git rev-parse --short=8 HEAD)"
+echo "Deployment requested for commit ${deployed_commit}."
+echo "GitHub Actions will test the application and publish the DEV image."
