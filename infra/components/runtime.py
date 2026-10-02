@@ -134,7 +134,7 @@ class Runtime(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        self.url = container_app.latest_revision_fqdn.apply(
-            lambda fqdn: f"https://{fqdn}"
+        self.url = environment.default_domain.apply(
+            lambda domain: f"https://research-analysis-dev.{domain}"
         )
         self.register_outputs({"url": self.url})
