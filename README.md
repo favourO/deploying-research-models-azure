@@ -98,24 +98,21 @@ Prepared environments are `dev`, `staging`, and `prod`; only DEV has state and d
 resources. Configuration lives in `Pulumi.<stack>.yaml`, never in source-code constants
 or credential files.
 
-## Phase 3 manual ACR and image runbook
+## Phase 3 ACR and image deployment
 
-No image build or push is performed by Pulumi. Review and create ACR manually:
+No image build or push is performed by Pulumi. The DEV deployment script previews and
+applies the infrastructure, builds the application once with the current commit SHA,
+pushes a Linux AMD64 image to ACR, and verifies the resulting tag and manifest:
 
 ```bash
-cd infra
-pulumi stack select dev
-pulumi preview
-pulumi up
-
-REGISTRY_NAME=$(pulumi stack output registryName)
-REGISTRY_SERVER=$(pulumi stack output registryLoginServer)
-cd ..
+./scripts/deploy-dev.sh
 ```
 
-This repository currently has no Git commit, so `git rev-parse --short HEAD` cannot yet
-produce an immutable version. Create the initial reviewed commit before publishing an
-image; do not invent a SHA or use `latest` as the primary identity. Then run:
+The script requires authenticated Azure CLI and Pulumi access, a running Docker daemon,
+and a clean Git working tree. It does not use registry admin
+credentials and does not publish `latest`.
+
+For a manual deployment, run:
 
 ```bash
 IMAGE_TAG=$(git rev-parse --short HEAD)
