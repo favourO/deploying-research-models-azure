@@ -21,7 +21,7 @@ hardening are not implemented.
 - `app/`: application, research logic, API, tests, and Docker build
 - `infra/`: Python Pulumi project and reusable Azure components
 - `deploy/`: deferred Helm and Kubernetes runtime configuration
-- `.github/workflows/` and `jenkins/`: deferred delivery automation
+- `.github/workflows/`: GitHub Actions CI/CD automation
 
 The pure `app/src/analysis` package has no Azure, HTTP, storage, Kubernetes, or Pulumi
 dependency.
@@ -231,9 +231,8 @@ immutable digest even when additional human-friendly tags such as `dev`, `stagin
 ## Deferred work
 
 - VNet, subnets, CIDR planning, NSGs, and private endpoints
-- Managed Identity, Workload Identity, RBAC, and ACR `AcrPull`
+- Workload Identity and broader application RBAC
 - AKS and PostgreSQL
 - application Key Vault integration
 - Azure Monitor, Log Analytics, and Application Insights
 - Helm/Kubernetes deployment
-- GitHub Actions and Jenkins
